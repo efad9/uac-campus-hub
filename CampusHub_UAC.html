@@ -1,0 +1,839 @@
+<!DOCTYPE html>
+<html lang="fr" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CampusHub UAC - Université d'Abomey-Calavi</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        uac: {
+                            blue: '#1e3a8a',
+                            lightBlue: '#3b82f6',
+                            dark: '#0f172a',
+                            gold: '#f59e0b',
+                            accent: '#ea580c'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- Font Inter & FontAwesome Icons -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .fade-in { animation: fadeIn 0.3s ease-in-out forwards; }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(6px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 h-full flex flex-col">
+
+    <!-- Notification Toast Container -->
+    <div id="toast-container" class="fixed bottom-5 right-5 z-50 flex flex-col gap-2"></div>
+
+    <!-- Modal Container -->
+    <div id="modal-container" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm hidden flex items-center justify-center p-4">
+        <div id="modal-content" class="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden fade-in"></div>
+    </div>
+
+    <!-- Top Navigation Bar -->
+    <header class="bg-uac-blue text-white shadow-lg sticky top-0 z-40">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
+            <!-- Logo & Brand -->
+            <div class="flex items-center space-x-3">
+                <div class="w-12 h-12 bg-white/10 rounded-xl flex items-center justify-center border border-white/20 text-uac-gold shadow-inner text-2xl font-bold">
+                    <i class="fa-solid fa-graduation-cap"></i>
+                </div>
+                <div>
+                    <h1 class="text-xl font-bold tracking-wide flex items-center gap-2">
+                        CampusHub <span class="text-uac-gold bg-uac-gold/20 px-2 py-0.5 rounded text-xs font-semibold uppercase tracking-wider border border-uac-gold/30">UAC</span>
+                    </h1>
+                    <p class="text-xs text-slate-200">Université d'Abomey-Calavi • Bénin</p>
+                </div>
+            </div>
+
+            <!-- Role Switcher & User Profile -->
+            <div class="flex items-center space-x-4">
+                <div class="bg-slate-900/40 p-1.5 rounded-xl border border-white/10 flex items-center shadow-inner">
+                    <button onclick="switchRole('student')" id="btn-role-student" class="px-4 py-2 rounded-lg text-xs font-semibold transition-all flex items-center gap-2 bg-uac-gold text-slate-900 shadow">
+                        <i class="fa-solid fa-user-graduate"></i> Mode Étudiant
+                    </button>
+                    <button onclick="switchRole('professor')" id="btn-role-professor" class="px-4 py-2 rounded-lg text-xs font-semibold transition-all flex items-center gap-2 text-slate-300 hover:text-white">
+                        <i class="fa-solid fa-chalkboard-user"></i> Mode Professeur
+                    </button>
+                </div>
+                <div class="hidden md:flex items-center space-x-3 pl-4 border-l border-white/20">
+                    <img id="user-avatar" src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&h=100&fit=crop&crop=faces" alt="Avatar" class="w-10 h-10 rounded-full border-2 border-uac-gold object-cover shadow">
+                    <div>
+                        <div id="user-name" class="text-sm font-bold">Kouassi Marc</div>
+                        <div id="user-role-label" class="text-xs text-uac-gold font-medium">Étudiant • FASEG L3</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content Area -->
+    <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 flex flex-col gap-6">
+
+        <!-- Navigation Tabs per Role -->
+        <nav class="flex overflow-x-auto space-x-2 bg-white p-2 rounded-2xl shadow-sm border border-slate-200" id="role-tabs">
+            <!-- Dynamic Tabs injected via JS -->
+        </nav>
+
+        <!-- Dynamic Panel Container -->
+        <div id="app-content" class="flex-1 flex flex-col gap-6">
+            <!-- Rendered view goes here -->
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-white border-t border-slate-200 mt-auto py-6 text-center text-xs text-slate-500">
+        <p>&copy; 2026 CampusHub UAC. Conçu pour l'excellence académique à l'Université d'Abomey-Calavi.</p>
+    </footer>
+
+    <!-- JavaScript Application Logic -->
+    <script>
+        // --- State Management ---
+        let currentRole = 'student'; // 'student' or 'professor'
+        let currentTab = 'library'; // student: library, rides, schedule, market | professor: attendance, assignments, announcements
+
+        // Mock State Data
+        const state = {
+            documents: [
+                { id: 1, title: 'Résumé de Comptabilité Analytique', faculty: 'FASEG', level: 'Licence 3', author: 'Dr. Mensah', type: 'Cours', downloads: 142, date: '2026-05-12', file: 'comptabilite_L3.pdf' },
+                { id: 2, title: 'TD Corrigé Analyse Mathématique S2', faculty: 'FAST', level: 'Licence 1', author: 'Dr. Hountondji', type: 'TD Corrigé', downloads: 308, date: '2026-06-01', file: 'td_analyse_S2.pdf' },
+                { id: 3, title: 'Introduction au Droit Administratif', faculty: 'FADESP', level: 'Licence 2', author: 'Prof. Adjovi', type: 'Résumé', downloads: 95, date: '2026-05-28', file: 'droit_admin_L2.pdf' },
+                { id: 4, title: 'Épreuve Corrigée de Thermodynamique 2024', faculty: 'FAST', level: 'Licence 2', author: 'Étudiant Délégué', type: 'Examen', downloads: 215, date: '2026-04-15', file: 'thermo_2024.pdf' },
+            ],
+            rides: [
+                { id: 1, driver: 'Sèna Dossou', route: 'Cotonou (Stade de l\'Amitié) ➔ Campus Calavi', time: '07:30', vehicle: 'Voiture (Climatisée)', seats: 3, price: '500 FCFA', phone: '+229 97 00 11 22' },
+                { id: 2, driver: 'Codjo Kpadé', route: 'Calavi (Zoca) ➔ FASEG / Amphi I', time: '08:00', vehicle: 'Moto Bajaj', seats: 1, price: '300 FCFA', phone: '+229 64 55 44 33' },
+                { id: 3, driver: 'Afivi Tossa', route: 'Porto-Novo ➔ UAC Campus Principal', time: '06:45', vehicle: 'Voiture', seats: 2, price: '1000 FCFA', phone: '+229 95 88 77 66' }
+            ],
+            schedules: [
+                { id: 1, course: 'Macroéconomie Avancée', room: 'Amphi Houdégbé', time: 'Lundi, 08:00 - 11:00', professor: 'Prof. Agbéti', status: 'Confirmé' },
+                { id: 2, course: 'Statistiques Inférentielles', room: 'Salle Info 02', time: 'Mardi, 14:00 - 17:00', professor: 'Dr. Kpossou', status: 'Changement de salle' },
+                { id: 3, course: 'Marketing Stratégique', room: 'Amphi 600', time: 'Jeudi, 09:00 - 12:00', professor: 'Dr. Adjé', status: 'Confirmé' }
+            ],
+            market: [
+                { id: 1, title: 'Rondes d\'Annales FASEG Reliées', category: 'Fournitures', price: '2 500 FCFA', seller: 'Librairie Étudiante UAC', contact: 'WhatsApp: 90000000', image: 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=400&h=300&fit=crop' },
+                { id: 2, title: 'Paquet de Photocopie / Notes prêtes', category: 'Cours', price: '1 000 FCFA', seller: 'Coopérative FAST', contact: 'Tel: 66554433', image: 'https://images.unsplash.com/photo-1532012197267-da84d127e765?w=400&h=300&fit=crop' },
+                { id: 3, title: 'Petits Déjeuners / Sandwichs Campus', category: 'Restauration', price: '600 FCFA', seller: 'Afi Snack Calavi', contact: 'Livraison Amphi', image: 'https://images.unsplash.com/photo-1554118811-1e0d58224f24?w=400&h=300&fit=crop' }
+            ],
+            attendanceSessions: [
+                { id: 1, course: 'Comptabilité Approfondie (FASEG L3)', code: 'UAC-9842', active: true, presentCount: 142, date: 'Aujourd\'hui, 08:30' },
+                { id: 2, course: 'Économie Monétaire (FASEG L2)', code: 'UAC-5510', active: false, presentCount: 210, date: 'Hier, 10:00' }
+            ],
+            assignments: [
+                { id: 1, title: 'Devoir de Synthèse - Cas Pratique Entreprise', course: 'Gestion Financière', deadline: '10 Juin 2026', submissions: 184, total: 250 },
+                { id: 2, title: 'Rapport de TP - Économétrie', course: 'Économétrie Appliquée', deadline: '18 Juin 2026', submissions: 92, total: 120 }
+            ],
+            announcements: [
+                { id: 1, title: 'Report du cours magistral de Macroéconomie', target: 'FASEG Licence 3', date: 'Il y a 2 heures', content: 'Le cours prévu ce lundi est reporté au mercredi même heure suite à une indisponibilité de l\'amphi.' },
+                { id: 2, title: 'Ouverture des inscriptions pédagogiques', target: 'Toutes les promotions', date: 'Hier', content: 'Veuillez vérifier vos quittances et valider vos choix d\'UE sur la plateforme avant le 30 juin.' }
+            ]
+        };
+
+        // --- Core UI Controller ---
+        function switchRole(role) {
+            currentRole = role;
+            if (role === 'student') {
+                document.getElementById('btn-role-student').className = "px-4 py-2 rounded-lg text-xs font-semibold transition-all flex items-center gap-2 bg-uac-gold text-slate-900 shadow";
+                document.getElementById('btn-role-professor').className = "px-4 py-2 rounded-lg text-xs font-semibold transition-all flex items-center gap-2 text-slate-300 hover:text-white";
+                document.getElementById('user-name').innerText = "Kouassi Marc";
+                document.getElementById('user-role-label').innerText = "Étudiant • FASEG L3";
+                document.getElementById('user-avatar').src = "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&h=100&fit=crop&crop=faces";
+                currentTab = 'library';
+            } else {
+                document.getElementById('btn-role-professor').className = "px-4 py-2 rounded-lg text-xs font-semibold transition-all flex items-center gap-2 bg-uac-gold text-slate-900 shadow";
+                document.getElementById('btn-role-student').className = "px-4 py-2 rounded-lg text-xs font-semibold transition-all flex items-center gap-2 text-slate-300 hover:text-white";
+                document.getElementById('user-name').innerText = "Dr. Mensah Koffi";
+                document.getElementById('user-role-label').innerText = "Professeur • Département Économie";
+                document.getElementById('user-avatar').src = "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&h=100&fit=crop&crop=faces";
+                currentTab = 'attendance';
+            }
+            renderApp();
+        }
+
+        function renderApp() {
+            renderTabs();
+            renderContent();
+        }
+
+        function renderTabs() {
+            const tabsContainer = document.getElementById('role-tabs');
+            let tabsHtml = '';
+            
+            if (currentRole === 'student') {
+                const tabs = [
+                    { id: 'library', label: 'Bibliothèque & TD', icon: 'fa-book-open' },
+                    { id: 'rides', label: 'Covoiturage UAC', icon: 'fa-car' },
+                    { id: 'schedule', label: 'Emploi du temps & Salles', icon: 'fa-calendar-days' },
+                    { id: 'market', label: 'Mini-Marché Étudiant', icon: 'fa-store' }
+                ];
+                tabs.forEach(t => {
+                    const active = currentTab === t.id;
+                    tabsHtml += `<button onclick="setTab('${t.id}')" class="px-5 py-2.5 rounded-xl font-medium text-sm flex items-center gap-2.5 transition whitespace-nowrap ${active ? 'bg-uac-blue text-white shadow-md' : 'text-slate-600 hover:bg-slate-100'}">
+                        <i class="fa-solid ${t.icon}"></i> ${t.label}
+                    </button>`;
+                });
+            } else {
+                const tabs = [
+                    { id: 'attendance', label: 'Émargement QR Code', icon: 'fa-qrcode' },
+                    { id: 'assignments', label: 'Boîte de Dépôt Devoirs', icon: 'fa-folder-open' },
+                    { id: 'announcements', label: 'Annonces Officielles', icon: 'fa-bullhorn' }
+                ];
+                tabs.forEach(t => {
+                    const active = currentTab === t.id;
+                    tabsHtml += `<button onclick="setTab('${t.id}')" class="px-5 py-2.5 rounded-xl font-medium text-sm flex items-center gap-2.5 transition whitespace-nowrap ${active ? 'bg-uac-blue text-white shadow-md' : 'text-slate-600 hover:bg-slate-100'}">
+                        <i class="fa-solid ${t.icon}"></i> ${t.label}
+                    </button>`;
+                });
+            }
+            tabsContainer.innerHTML = tabsHtml;
+        }
+
+        function setTab(tabId) {
+            currentTab = tabId;
+            renderApp();
+        }
+
+        function renderContent() {
+            const container = document.getElementById('app-content');
+            container.innerHTML = '';
+            
+            if (currentRole === 'student') {
+                if (currentTab === 'library') container.innerHTML = renderLibraryView();
+                else if (currentTab === 'rides') container.innerHTML = renderRidesView();
+                else if (currentTab === 'schedule') container.innerHTML = renderScheduleView();
+                else if (currentTab === 'market') container.innerHTML = renderMarketView();
+            } else {
+                if (currentTab === 'attendance') container.innerHTML = renderAttendanceView();
+                else if (currentTab === 'assignments') container.innerHTML = renderAssignmentsView();
+                else if (currentTab === 'announcements') container.innerHTML = renderAnnouncementsView();
+            }
+        }
+
+        // --- STUDENT VIEWS ---
+
+        function renderLibraryView() {
+            return `
+                <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+                    <div>
+                        <h2 class="text-xl font-bold text-slate-900">Bibliothèque Numérique & Partage de TD</h2>
+                        <p class="text-xs text-slate-500 mt-1">Accédez aux cours, résumés et épreuves corrigées partagés par les étudiants et professeurs de l'UAC.</p>
+                    </div>
+                    <div class="flex items-center gap-3 w-full md:w-auto">
+                        <input type="text" id="lib-search" oninput="filterLibrary()" placeholder="Rechercher un cours..." class="px-4 py-2 bg-slate-100 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-uac-blue w-full md:w-64">
+                        <button onclick="openUploadModal()" class="bg-uac-blue text-white px-4 py-2 rounded-xl text-sm font-medium hover:bg-blue-900 transition flex items-center gap-2 shrink-0 shadow">
+                            <i class="fa-solid fa-cloud-arrow-up"></i> Partager un doc
+                        </button>
+                    </div>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4" id="library-grid">
+                    ${state.documents.map(doc => `
+                        <div class="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm flex flex-col justify-between hover:shadow-md transition">
+                            <div>
+                                <div class="flex items-center justify-between mb-3">
+                                    <span class="px-2.5 py-1 bg-blue-50 text-uac-blue text-xs font-bold rounded-lg border border-blue-100">${doc.faculty}</span>
+                                    <span class="text-xs text-slate-400 font-medium">${doc.level}</span>
+                                </div>
+                                <h3 class="font-bold text-slate-900 text-base mb-1 line-clamp-2">${doc.title}</h3>
+                                <p class="text-xs text-slate-500 mb-4"><i class="fa-solid fa-chalkboard-user mr-1"></i> ${doc.author} • <span class="text-uac-accent font-medium">${doc.type}</span></p>
+                            </div>
+                            <div class="pt-4 border-t border-slate-100 flex items-center justify-between">
+                                <span class="text-xs text-slate-400"><i class="fa-solid fa-download mr-1"></i> ${doc.downloads} téléch.</span>
+                                <button onclick="showToast('Téléchargement de ${doc.title} initié...')" class="bg-slate-100 hover:bg-uac-blue hover:text-white text-slate-700 px-3 py-1.5 rounded-xl text-xs font-medium transition flex items-center gap-1.5">
+                                    <i class="fa-solid fa-file-arrow-down"></i> Télécharger
+                                </button>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+        }
+
+        function renderRidesView() {
+            return `
+                <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+                    <div>
+                        <h2 class="text-xl font-bold text-slate-900">Bourse de Covoiturage UAC</h2>
+                        <p class="text-xs text-slate-500 mt-1">Voyagez en toute sécurité et partagez les frais vers le campus d'Abomey-Calavi ou Cotonou.</p>
+                    </div>
+                    <button onclick="openRideModal()" class="bg-uac-gold text-slate-900 px-4 py-2 rounded-xl text-sm font-semibold hover:bg-amber-400 transition flex items-center gap-2 shadow">
+                        <i class="fa-solid fa-car-side"></i> Proposer un trajet
+                    </button>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    ${state.rides.map(r => `
+                        <div class="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm flex flex-col justify-between">
+                            <div>
+                                <div class="flex items-center justify-between mb-4">
+                                    <span class="px-3 py-1 bg-amber-50 text-amber-700 text-xs font-bold rounded-lg border border-amber-200">${r.vehicle}</span>
+                                    <span class="text-sm font-extrabold text-uac-blue">${r.price}</span>
+                                </div>
+                                <div class="flex items-center gap-3 mb-4">
+                                    <div class="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center font-bold text-uac-blue text-sm border border-slate-200">
+                                        ${r.driver.charAt(0)}
+                                    </div>
+                                    <div>
+                                        <h4 class="font-bold text-slate-900 text-sm">${r.driver}</h4>
+                                        <p class="text-xs text-slate-500">Départ à <span class="font-semibold text-slate-700">${r.time}</span></p>
+                                    </div>
+                                </div>
+                                <div class="bg-slate-50 p-3 rounded-xl border border-slate-100 mb-4 text-xs text-slate-700 font-medium">
+                                    <i class="fa-solid fa-route text-uac-lightBlue mr-2"></i> ${r.route}
+                                </div>
+                            </div>
+                            <div class="flex items-center justify-between pt-3 border-t border-slate-100">
+                                <span class="text-xs text-slate-500"><i class="fa-solid fa-user-group mr-1"></i> ${r.seats} places dispo</span>
+                                <button onclick="showToast('Contact conducteur copié : ${r.phone}')" class="bg-uac-blue text-white px-3.5 py-1.5 rounded-xl text-xs font-medium hover:bg-blue-900 transition flex items-center gap-1.5 shadow-sm">
+                                    <i class="fa-solid fa-phone"></i> Réserver
+                                </button>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+        }
+
+        function renderScheduleView() {
+            return `
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+                    <h2 class="text-xl font-bold text-slate-900">Emploi du Temps & Alertes Salles</h2>
+                    <p class="text-xs text-slate-500 mt-1">Restez informé des modifications de salles d'amphi et des horaires de cours en temps réel.</p>
+                </div>
+                <div class="space-y-4">
+                    ${state.schedules.map(s => `
+                        <div class="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                            <div class="flex items-start gap-4">
+                                <div class="w-12 h-12 rounded-2xl bg-blue-50 text-uac-blue flex items-center justify-center text-xl shrink-0 border border-blue-100 font-bold">
+                                    <i class="fa-solid fa-calendar-days"></i>
+                                </div>
+                                <div>
+                                    <div class="flex items-center gap-2 mb-1">
+                                        <h3 class="font-bold text-slate-900 text-base">${s.course}</h3>
+                                        <span class="px-2 py-0.5 rounded text-xs font-semibold ${s.status === 'Changement de salle' ? 'bg-amber-100 text-amber-800' : 'bg-emerald-100 text-emerald-800'}">${s.status}</span>
+                                    </div>
+                                    <p class="text-xs text-slate-500 flex items-center gap-3">
+                                        <span><i class="fa-solid fa-chalkboard-user mr-1 text-slate-400"></i> ${s.professor}</span>
+                                        <span><i class="fa-solid fa-clock mr-1 text-slate-400"></i> ${s.time}</span>
+                                    </p>
+                                </div>
+                            </div>
+                            <div class="bg-slate-50 px-4 py-2.5 rounded-xl border border-slate-200 flex items-center gap-2 w-full md:w-auto justify-between md:justify-start">
+                                <span class="text-xs text-slate-500">Salle :</span>
+                                <span class="text-xs font-bold text-uac-blue"><i class="fa-solid fa-location-dot mr-1"></i> ${s.room}</span>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+        }
+
+        function renderMarketView() {
+            return `
+                <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+                    <div>
+                        <h2 class="text-xl font-bold text-slate-900">Mini-Marché & Services Étudiants</h2>
+                        <p class="text-xs text-slate-500 mt-1">Découvrez les services, annales reliées et petits commerces proposés par les étudiants de l'UAC.</p>
+                    </div>
+                    <button onclick="openMarketModal()" class="bg-uac-blue text-white px-4 py-2 rounded-xl text-sm font-medium hover:bg-blue-900 transition flex items-center gap-2 shadow">
+                        <i class="fa-solid fa-plus"></i> Publier une annonce
+                    </button>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    ${state.market.map(m => `
+                        <div class="bg-white rounded-2xl overflow-hidden border border-slate-200 shadow-sm flex flex-col justify-between">
+                            <img src="${m.image}" alt="${m.title}" class="w-full h-48 object-cover">
+                            <div class="p-5 flex-1 flex flex-col justify-between">
+                                <div>
+                                    <div class="flex items-center justify-between mb-2">
+                                        <span class="px-2.5 py-0.5 bg-slate-100 text-slate-700 text-xs font-semibold rounded-md">${m.category}</span>
+                                        <span class="text-sm font-bold text-uac-accent">${m.price}</span>
+                                    </div>
+                                    <h3 class="font-bold text-slate-900 text-base mb-1">${m.title}</h3>
+                                    <p class="text-xs text-slate-500 mb-4"><i class="fa-solid fa-user mr-1"></i> ${m.seller}</p>
+                                </div>
+                                <button onclick="showToast('Contact vendeur : ${m.contact}')" class="w-full bg-slate-100 hover:bg-uac-gold hover:text-slate-900 text-slate-800 py-2 rounded-xl text-xs font-semibold transition flex items-center justify-center gap-2">
+                                    <i class="fa-solid fa-bag-shopping"></i> Commander / Contacter
+                                </button>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+        }
+
+        // --- PROFESSOR VIEWS ---
+
+        function renderAttendanceView() {
+            return `
+                <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+                    <div>
+                        <h2 class="text-xl font-bold text-slate-900">Émargement Intelligent par QR Code</h2>
+                        <p class="text-xs text-slate-500 mt-1">Générez un code de présence dynamique pour vos amphithéâtres et suivez les émargements en direct.</p>
+                    </div>
+                    <button onclick="openAttendanceModal()" class="bg-uac-blue text-white px-4 py-2 rounded-xl text-sm font-medium hover:bg-blue-900 transition flex items-center gap-2 shadow">
+                        <i class="fa-solid fa-qrcode"></i> Créer une session d'émargement
+                    </button>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    ${state.attendanceSessions.map(a => `
+                        <div class="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm flex flex-col justify-between">
+                            <div>
+                                <div class="flex items-center justify-between mb-3">
+                                    <span class="px-3 py-1 ${a.active ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-slate-100 text-slate-600 border-slate-200'} text-xs font-bold rounded-lg border">
+                                        ${a.active ? '● Session en cours' : '○ Session terminée'}
+                                    </span>
+                                    <span class="text-xs text-slate-400">${a.date}</span>
+                                </div>
+                                <h3 class="font-bold text-slate-900 text-base mb-4">${a.course}</h3>
+                                <div class="bg-slate-50 p-4 rounded-xl border border-slate-200 flex items-center justify-between mb-4">
+                                    <div>
+                                        <div class="text-xs text-slate-500">Code de validation :</div>
+                                        <div class="text-lg font-mono font-bold text-uac-blue tracking-wider">${a.code}</div>
+                                    </div>
+                                    <div class="text-right">
+                                        <div class="text-xs text-slate-500">Étudiants présents :</div>
+                                        <div class="text-lg font-extrabold text-emerald-600">${a.presentCount}</div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-3">
+                                <button onclick="showToast('Affichage du QR Code plein écran pour ${a.course}')" class="flex-1 bg-uac-gold text-slate-900 py-2 rounded-xl text-xs font-semibold hover:bg-amber-400 transition flex items-center justify-center gap-2 shadow-sm">
+                                    <i class="fa-solid fa-expand"></i> Afficher le QR Géant
+                                </button>
+                                <button onclick="showToast('Export de la liste d\'émargement en PDF réussi')" class="px-4 py-2 bg-slate-100 text-slate-700 hover:bg-slate-200 rounded-xl text-xs font-semibold transition">
+                                    <i class="fa-solid fa-file-excel"></i> Export
+                                </button>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+        }
+
+        function renderAssignmentsView() {
+            return `
+                <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+                    <div>
+                        <h2 class="text-xl font-bold text-slate-900">Boîte de Dépôt de Devoirs & Travaux</h2>
+                        <p class="text-xs text-slate-500 mt-1">Consultez les devoirs de recherche et exposés soumis par vos étudiants de façon centralisée.</p>
+                    </div>
+                    <button onclick="openAssignmentModal()" class="bg-uac-blue text-white px-4 py-2 rounded-xl text-sm font-medium hover:bg-blue-900 transition flex items-center gap-2 shadow">
+                        <i class="fa-solid fa-plus-circle"></i> Publier un devoir
+                    </button>
+                </div>
+                <div class="space-y-4">
+                    ${state.assignments.map(as => `
+                        <div class="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                            <div class="flex items-start gap-4">
+                                <div class="w-12 h-12 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center text-xl shrink-0 border border-amber-100 font-bold">
+                                    <i class="fa-solid fa-folder-open"></i>
+                                </div>
+                                <div>
+                                    <div class="flex items-center gap-2 mb-1">
+                                        <h3 class="font-bold text-slate-900 text-base">${as.title}</h3>
+                                        <span class="px-2.5 py-0.5 bg-blue-50 text-uac-blue text-xs font-semibold rounded-md border border-blue-100">${as.course}</span>
+                                    </div>
+                                    <p class="text-xs text-slate-500"><i class="fa-solid fa-calendar-xmark text-uac-accent mr-1"></i> Date limite : <span class="font-semibold text-slate-700">${as.deadline}</span></p>
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-6 w-full md:w-auto justify-between md:justify-end">
+                                <div class="text-right">
+                                    <div class="text-xs text-slate-400">Soumissions</div>
+                                    <div class="text-sm font-bold text-uac-blue">${as.submissions} / ${as.total}</div>
+                                </div>
+                                <button onclick="showToast('Téléchargement du dossier zip des copies pour ${as.title}')" class="bg-slate-100 hover:bg-uac-blue hover:text-white text-slate-700 px-4 py-2 rounded-xl text-xs font-semibold transition flex items-center gap-1.5">
+                                    <i class="fa-solid fa-download"></i> Tout récupérer
+                                </button>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+        }
+
+        function renderAnnouncementsView() {
+            return `
+                <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+                    <div>
+                        <h2 class="text-xl font-bold text-slate-900">Canal d'Annonces Officielles</h2>
+                        <p class="text-xs text-slate-500 mt-1">Diffusez des communiqués urgents et officiels directement aux promotions concernées.</p>
+                    </div>
+                    <button onclick="openAnnouncementModal()" class="bg-uac-gold text-slate-900 px-4 py-2 rounded-xl text-sm font-semibold hover:bg-amber-400 transition flex items-center gap-2 shadow">
+                        <i class="fa-solid fa-bullhorn"></i> Diffuser un communiqué
+                    </button>
+                </div>
+                <div class="space-y-4">
+                    ${state.announcements.map(an => `
+                        <div class="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm">
+                            <div class="flex items-center justify-between mb-3">
+                                <span class="px-3 py-1 bg-blue-50 text-uac-blue text-xs font-bold rounded-lg border border-blue-100"><i class="fa-solid fa-graduation-cap mr-1"></i> ${an.target}</span>
+                                <span class="text-xs text-slate-400">${an.date}</span>
+                            </div>
+                            <h3 class="font-bold text-slate-900 text-base mb-2">${an.title}</h3>
+                            <p class="text-xs text-slate-600 leading-relaxed bg-slate-50 p-4 rounded-xl border border-slate-100">${an.content}</p>
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+        }
+
+        // --- MODAL & INTERACTION HANDLERS ---
+
+        function openUploadModal() {
+            showModal(`
+                <div class="p-6">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="text-lg font-bold text-slate-900 flex items-center gap-2"><i class="fa-solid fa-cloud-arrow-up text-uac-blue"></i> Partager un document</h3>
+                        <button onclick="closeModal()" class="text-slate-400 hover:text-slate-600 text-lg"><i class="fa-solid fa-xmark"></i></button>
+                    </div>
+                    <form onsubmit="handleUploadSubmit(event)" class="space-y-4 text-xs">
+                        <div>
+                            <label class="block font-semibold text-slate-700 mb-1">Titre du document</label>
+                            <input type="text" id="up-title" required placeholder="Ex: Résumé de Droit des Obligations" class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-uac-blue">
+                        </div>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="block font-semibold text-slate-700 mb-1">Faculté</label>
+                                <select id="up-faculty" class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-uac-blue">
+                                    <option>FASEG</option><option>FAST</option><option>FADESP</option><option>FLASH</option><option>ENSTIC</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block font-semibold text-slate-700 mb-1">Niveau</label>
+                                <select id="up-level" class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-uac-blue">
+                                    <option>Licence 1</option><option>Licence 2</option><option>Licence 3</option><option>Master 1</option><option>Master 2</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block font-semibold text-slate-700 mb-1">Type de document</label>
+                            <select id="up-type" class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-uac-blue">
+                                <option>Cours Magistral</option><option>TD Corrigé</option><option>Résumé</option><option>Examen Corrigé</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block font-semibold text-slate-700 mb-1">Fichier (PDF)</label>
+                            <input type="file" required class="w-full text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-uac-blue hover:file:bg-blue-100">
+                        </div>
+                        <div class="pt-4 flex items-center justify-end gap-3">
+                            <button type="button" onclick="closeModal()" class="px-4 py-2.5 rounded-xl border border-slate-200 text-slate-600 font-semibold hover:bg-slate-100">Annuler</button>
+                            <button type="submit" class="px-5 py-2.5 rounded-xl bg-uac-blue text-white font-semibold hover:bg-blue-900 shadow">Publier</button>
+                        </div>
+                    </form>
+                </div>
+            `);
+        }
+
+        function handleUploadSubmit(e) {
+            e.preventDefault();
+            const title = document.getElementById('up-title').value;
+            const faculty = document.getElementById('up-faculty').value;
+            const level = document.getElementById('up-level').value;
+            const type = document.getElementById('up-type').value;
+
+            state.documents.unshift({
+                id: Date.now(),
+                title, faculty, level, type,
+                author: 'Kouassi Marc (Vous)',
+                downloads: 0,
+                date: 'Aujourd\'hui',
+                file: 'doc.pdf'
+            });
+
+            closeModal();
+            renderApp();
+            showToast('Document partagé avec succès sur CampusHub !');
+        }
+
+        function openRideModal() {
+            showModal(`
+                <div class="p-6">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="text-lg font-bold text-slate-900 flex items-center gap-2"><i class="fa-solid fa-car text-uac-blue"></i> Proposer un covoiturage</h3>
+                        <button onclick="closeModal()" class="text-slate-400 hover:text-slate-600 text-lg"><i class="fa-solid fa-xmark"></i></button>
+                    </div>
+                    <form onsubmit="handleRideSubmit(event)" class="space-y-4 text-xs">
+                        <div>
+                            <label class="block font-semibold text-slate-700 mb-1">Trajet (Départ ➔ Arrivée)</label>
+                            <input type="text" id="r-route" required placeholder="Ex: Cotonou (Cocotomey) ➔ UAC Campus" class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-uac-blue">
+                        </div>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="block font-semibold text-slate-700 mb-1">Heure de départ</label>
+                                <input type="text" id="r-time" required placeholder="Ex: 07:30" class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-uac-blue">
+                            </div>
+                            <div>
+                                <label class="block font-semibold text-slate-700 mb-1">Prix par personne</label>
+                                <input type="text" id="r-price" required placeholder="Ex: 500 FCFA" class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-uac-blue">
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="block font-semibold text-slate-700 mb-1">Véhicule</label>
+                                <select id="r-vehicle" class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-uac-blue">
+                                    <option>Voiture</option><option>Moto Bajaj</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block font-semibold text-slate-700 mb-1">Places disponibles</label>
+                                <input type="number" id="r-seats" min="1" max="6" value="2" required class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-uac-blue">
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block font-semibold text-slate-700 mb-1">Contact WhatsApp / Téléphone</label>
+                            <input type="text" id="r-phone" required placeholder="+229 97..." class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-uac-blue">
+                        </div>
+                        <div class="pt-4 flex items-center justify-end gap-3">
+                            <button type="button" onclick="closeModal()" class="px-4 py-2.5 rounded-xl border border-slate-200 text-slate-600 font-semibold hover:bg-slate-100">Annuler</button>
+                            <button type="submit" class="px-5 py-2.5 rounded-xl bg-uac-gold text-slate-900 font-semibold hover:bg-amber-400 shadow">Proposer</button>
+                        </div>
+                    </form>
+                </div>
+            `);
+        }
+
+        function handleRideSubmit(e) {
+            e.preventDefault();
+            state.rides.unshift({
+                id: Date.now(),
+                driver: 'Kouassi Marc',
+                route: document.getElementById('r-route').value,
+                time: document.getElementById('r-time').value,
+                vehicle: document.getElementById('r-vehicle').value,
+                seats: document.getElementById('r-seats').value,
+                price: document.getElementById('r-price').value,
+                phone: document.getElementById('r-phone').value
+            });
+            closeModal();
+            renderApp();
+            showToast('Trajet de covoiturage publié avec succès !');
+        }
+
+        function openMarketModal() {
+            showModal(`
+                <div class="p-6">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="text-lg font-bold text-slate-900 flex items-center gap-2"><i class="fa-solid fa-store text-uac-blue"></i> Publier sur le mini-marché</h3>
+                        <button onclick="closeModal()" class="text-slate-400 hover:text-slate-600 text-lg"><i class="fa-solid fa-xmark"></i></button>
+                    </div>
+                    <form onsubmit="handleMarketSubmit(event)" class="space-y-4 text-xs">
+                        <div>
+                            <label class="block font-semibold text-slate-700 mb-1">Titre de l'offre / produit</label>
+                            <input type="text" id="m-title" required placeholder="Ex: Vente Annales corrigées de Gestion" class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-uac-blue">
+                        </div>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="block font-semibold text-slate-700 mb-1">Catégorie</label>
+                                <select id="m-category" class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-uac-blue">
+                                    <option>Fournitures</option><option>Cours</option><option>Restauration</option><option>Services</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block font-semibold text-slate-700 mb-1">Prix</label>
+                                <input type="text" id="m-price" required placeholder="Ex: 1500 FCFA" class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-uac-blue">
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block font-semibold text-slate-700 mb-1">Contact WhatsApp / Infos</label>
+                            <input type="text" id="m-contact" required placeholder="WhatsApp: +229..." class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-uac-blue">
+                        </div>
+                        <div class="pt-4 flex items-center justify-end gap-3">
+                            <button type="button" onclick="closeModal()" class="px-4 py-2.5 rounded-xl border border-slate-200 text-slate-600 font-semibold hover:bg-slate-100">Annuler</button>
+                            <button type="submit" class="px-5 py-2.5 rounded-xl bg-uac-blue text-white font-semibold hover:bg-blue-900 shadow">Mettre en ligne</button>
+                        </div>
+                    </form>
+                </div>
+            `);
+        }
+
+        function handleMarketSubmit(e) {
+            e.preventDefault();
+            state.market.unshift({
+                id: Date.now(),
+                title: document.getElementById('m-title').value,
+                category: document.getElementById('m-category').value,
+                price: document.getElementById('m-price').value,
+                seller: 'Kouassi Marc (Étudiant)',
+                contact: document.getElementById('m-contact').value,
+                image: 'https://images.unsplash.com/photo-1523240795612-9a054b0db644?w=400&h=300&fit=crop'
+            });
+            closeModal();
+            renderApp();
+            showToast('Annonce publiée sur le mini-marché !');
+        }
+
+        function openAttendanceModal() {
+            showModal(`
+                <div class="p-6">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="text-lg font-bold text-slate-900 flex items-center gap-2"><i class="fa-solid fa-qrcode text-uac-blue"></i> Nouvelle session d'émargement</h3>
+                        <button onclick="closeModal()" class="text-slate-400 hover:text-slate-600 text-lg"><i class="fa-solid fa-xmark"></i></button>
+                    </div>
+                    <form onsubmit="handleAttendanceSubmit(event)" class="space-y-4 text-xs">
+                        <div>
+                            <label class="block font-semibold text-slate-700 mb-1">Intitulé du Cours / UE / Amphi</label>
+                            <input type="text" id="att-course" required placeholder="Ex: Macroéconomie FASEG L3" class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-uac-blue">
+                        </div>
+                        <div class="pt-4 flex items-center justify-end gap-3">
+                            <button type="button" onclick="closeModal()" class="px-4 py-2.5 rounded-xl border border-slate-200 text-slate-600 font-semibold hover:bg-slate-100">Annuler</button>
+                            <button type="submit" class="px-5 py-2.5 rounded-xl bg-uac-blue text-white font-semibold hover:bg-blue-900 shadow">Générer le QR Code</button>
+                        </div>
+                    </form>
+                </div>
+            `);
+        }
+
+        function handleAttendanceSubmit(e) {
+            e.preventDefault();
+            const course = document.getElementById('att-course').value;
+            const randomCode = 'UAC-' + Math.floor(1000 + Math.random() * 9000);
+            state.attendanceSessions.unshift({
+                id: Date.now(),
+                course,
+                code: randomCode,
+                active: true,
+                presentCount: 0,
+                date: 'Aujourd\'hui'
+            });
+            closeModal();
+            renderApp();
+            showToast(`Session d'émargement créée ! Code : ${randomCode}`);
+        }
+
+        function openAssignmentModal() {
+            showModal(`
+                <div class="p-6">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="text-lg font-bold text-slate-900 flex items-center gap-2"><i class="fa-solid fa-folder-open text-uac-blue"></i> Publier un devoir</h3>
+                        <button onclick="closeModal()" class="text-slate-400 hover:text-slate-600 text-lg"><i class="fa-solid fa-xmark"></i></button>
+                    </div>
+                    <form onsubmit="handleAssignmentSubmit(event)" class="space-y-4 text-xs">
+                        <div>
+                            <label class="block font-semibold text-slate-700 mb-1">Titre du devoir / travail</label>
+                            <input type="text" id="as-title" required placeholder="Ex: Devoir de recherche en Microéconomie" class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-uac-blue">
+                        </div>
+                        <div>
+                            <label class="block font-semibold text-slate-700 mb-1">Matière / UE</label>
+                            <input type="text" id="as-course" required placeholder="Ex: Microéconomie L2" class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-uac-blue">
+                        </div>
+                        <div>
+                            <label class="block font-semibold text-slate-700 mb-1">Date limite de soumission</label>
+                            <input type="text" id="as-deadline" required placeholder="Ex: 25 Juin 2026" class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-uac-blue">
+                        </div>
+                        <div class="pt-4 flex items-center justify-end gap-3">
+                            <button type="button" onclick="closeModal()" class="px-4 py-2.5 rounded-xl border border-slate-200 text-slate-600 font-semibold hover:bg-slate-100">Annuler</button>
+                            <button type="submit" class="px-5 py-2.5 rounded-xl bg-uac-blue text-white font-semibold hover:bg-blue-900 shadow">Publier</button>
+                        </div>
+                    </form>
+                </div>
+            `);
+        }
+
+        function handleAssignmentSubmit(e) {
+            e.preventDefault();
+            state.assignments.unshift({
+                id: Date.now(),
+                title: document.getElementById('as-title').value,
+                course: document.getElementById('as-course').value,
+                deadline: document.getElementById('as-deadline').value,
+                submissions: 0,
+                total: 200
+            });
+            closeModal();
+            renderApp();
+            showToast('Boîte de dépôt de devoir ouverte aux étudiants !');
+        }
+
+        function openAnnouncementModal() {
+            showModal(`
+                <div class="p-6">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="text-lg font-bold text-slate-900 flex items-center gap-2"><i class="fa-solid fa-bullhorn text-uac-blue"></i> Diffuser un communiqué</h3>
+                        <button onclick="closeModal()" class="text-slate-400 hover:text-slate-600 text-lg"><i class="fa-solid fa-xmark"></i></button>
+                    </div>
+                    <form onsubmit="handleAnnouncementSubmit(event)" class="space-y-4 text-xs">
+                        <div>
+                            <label class="block font-semibold text-slate-700 mb-1">Titre de l'annonce</label>
+                            <input type="text" id="an-title" required placeholder="Ex: Report du TP de Physique" class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-uac-blue">
+                        </div>
+                        <div>
+                            <label class="block font-semibold text-slate-700 mb-1">Promotion / Cible</label>
+                            <input type="text" id="an-target" required placeholder="Ex: FAST Licence 1" class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-uac-blue">
+                        </div>
+                        <div>
+                            <label class="block font-semibold text-slate-700 mb-1">Contenu du message</label>
+                            <textarea id="an-content" rows="4" required placeholder="Détails du communiqué..." class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-uac-blue"></textarea>
+                        </div>
+                        <div class="pt-4 flex items-center justify-end gap-3">
+                            <button type="button" onclick="closeModal()" class="px-4 py-2.5 rounded-xl border border-slate-200 text-slate-600 font-semibold hover:bg-slate-100">Annuler</button>
+                            <button type="submit" class="px-5 py-2.5 rounded-xl bg-uac-gold text-slate-900 font-semibold hover:bg-amber-400 shadow">Diffuser maintenant</button>
+                        </div>
+                    </form>
+                </div>
+            `);
+        }
+
+        function handleAnnouncementSubmit(e) {
+            e.preventDefault();
+            state.announcements.unshift({
+                id: Date.now(),
+                title: document.getElementById('an-title').value,
+                target: document.getElementById('an-target').value,
+                date: 'À l\'instant',
+                content: document.getElementById('an-content').value
+            });
+            closeModal();
+            renderApp();
+            showToast('Communiqué officiel diffusé avec succès !');
+        }
+
+        // Modal Helpers
+        function showModal(html) {
+            const container = document.getElementById('modal-container');
+            const content = document.getElementById('modal-content');
+            content.innerHTML = html;
+            container.classList.remove('hidden');
+        }
+
+        function closeModal() {
+            document.getElementById('modal-container').classList.add('hidden');
+        }
+
+        // Toast Helper
+        function showToast(message) {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.className = "bg-slate-900 text-white px-5 py-3 rounded-xl shadow-xl text-xs font-medium flex items-center gap-3 border border-slate-800 fade-in";
+            toast.innerHTML = `<i class="fa-solid fa-circle-check text-uac-gold text-base"></i> <span>${message}</span>`;
+            container.appendChild(toast);
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                setTimeout(() => toast.remove(), 300);
+            }, 3500);
+        }
+
+        function filterLibrary() {
+            // Interactive search stub
+        }
+
+        // Initial render on load
+        window.onload = function() {
+            renderApp();
+        };
+    </script>
+</body>
+</html>
